@@ -1,0 +1,203 @@
+services:
+  # PostgreSQL - Banco de dados para MLFlow e dados estruturados
+  postgres:
+    image: postgres:15-alpine
+    container_name: heart-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ml-network
+
+  # MinIO - Object Storage (S3-compatible) para dados e modelos
+  minio:
+    image: minio/minio:latest
+    container_name: heart-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console Web
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - ml-network
+
+  # MinIO Client - Cria bucket automaticamente
+  minio-setup:
+    image: minio/mc:latest
+    container_name: heart-minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb myminio/${MINIO_BUCKET} --ignore-existing;
+      mc anonymous set download myminio/${MINIO_BUCKET};
+      exit 0;
+      "
+    networks:
+      - ml-network
+
+  # MLFlow - Tracking Server
+  mlflow:
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
+    container_name: heart-mlflow
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      --default-artifact-root s3://${MINIO_BUCKET}/mlflow-artifacts
+      --host 0.0.0.0
+      --port 5000
+    networks:
+      - ml-network
+
+  # FastAPI - Camada de Ingestão
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: heart-api
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - minio
+      - mlflow
+    volumes:
+      - ./api:/app
+    networks:
+      - ml-network
+
+  # JupyterLab - Ambiente de Desenvolvimento
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: heart-jupyter
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+      GRANT_SUDO: "yes"
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "8888:8888"
+    depends_on:
+      - postgres
+      - minio
+      - mlflow
+    volumes:
+      - ./notebooks:/home/jovyan/work/notebooks
+      - ./src:/home/jovyan/work/src
+      - ./data:/home/jovyan/work/data
+      - ./models:/home/jovyan/work/models
+    user: root
+    command: >
+      bash -c "
+      pip install boto3 mlflow psycopg2-binary scikit-learn pandas numpy seaborn matplotlib imbalanced-learn &&
+      start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+      "
+    networks:
+      - ml-network
+
+  # ThingsBoard - Visualização
+  thingsboard:
+    image: thingsboard/tb-postgres:latest
+    container_name: heart-thingsboard
+    environment:
+      TB_QUEUE_TYPE: in-memory
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "8080:9090"  # ThingsBoard UI
+      - "1884:1883"  # MQTT (mudando para 1884 para evitar conflito)
+    depends_on:
+      - postgres
+    volumes:
+      - thingsboard_data:/data
+      - thingsboard_logs:/var/log/thingsboard
+    networks:
+      - ml-network
+
+  # Streaming Simulator - Envia dados de validação
+  streaming:
+    build:
+      context: ./streaming
+      dockerfile: Dockerfile
+    container_name: heart-streaming
+    environment:
+      API_URL: http://api:8000
+      STREAM_INTERVAL_SECONDS: ${STREAM_INTERVAL_SECONDS}
+      DATA_PATH: /data/validation.csv
+    depends_on:
+      - api
+    volumes:
+      - ./data/processed:/data
+    networks:
+      - ml-network
+    # Não inicia automaticamente, deve ser iniciado manualmente
+    profiles:
+      - streaming
+
+volumes:
+  postgres_data:
+  minio_data:
+  thingsboard_data:
+  thingsboard_logs:
+
+networks:
+  ml-network:
+    driver: bridge

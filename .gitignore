@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Data files (não versionar datasets grandes)
+data/raw/*.csv
+data/processed/*.csv
+data/stream/*.csv
+*.pkl
+*.h5
+*.hdf5
+
+# Models
+models/*.pkl
+models/*.joblib
+models/*.h5
+
+# Environment variables
+.env
+.env.local
+
+# Docker
+.dockerignore
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MLFlow
+mlflow/mlruns/
+mlartifacts/
+
+# Logs
+*.log
+logs/
+
+# MinIO data (volumes são gerenciados pelo Docker)
+minio/
+
+# PostgreSQL data
+postgres_data/
+
+# ThingsBoard data
+thingsboard_data/
+thingsboard_logs/
+
+# Temporary files
+*.tmp
+*.temp
