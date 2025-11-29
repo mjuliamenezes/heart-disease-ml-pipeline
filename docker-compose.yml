@@ -110,6 +110,7 @@ services:
       - mlflow
     volumes:
       - ./api:/app
+      - ./src:/app/src
     networks:
       - ml-network
 
