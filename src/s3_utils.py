@@ -35,7 +35,14 @@ class S3Client:
             secret_key: Secret key do MinIO
             bucket_name: Nome do bucket
         """
-        self.endpoint_url = endpoint_url or os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
+        # Obter endpoint da variável de ambiente ou usar default
+        endpoint = endpoint_url or os.getenv('MINIO_ENDPOINT', 'minio:9000')
+        
+        # Garantir que endpoint tem protocolo http://
+        if not endpoint.startswith(('http://', 'https://')):
+            endpoint = f'http://{endpoint}'
+        
+        self.endpoint_url = endpoint
         self.access_key = access_key or os.getenv('MINIO_ACCESS_KEY', 'minioadmin')
         self.secret_key = secret_key or os.getenv('MINIO_SECRET_KEY', 'minioadmin123')
         self.bucket_name = bucket_name or os.getenv('MINIO_BUCKET', 'ml-bucket-heart')

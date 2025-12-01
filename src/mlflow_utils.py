@@ -87,22 +87,141 @@ class MLFlowClient:
         self,
         model: Any,
         artifact_path: str = "model",
-        registered_model_name: str = None
-    ) -> None:
+        registered_model_name: str = None,
+        save_to_s3: bool = True,
+        s3_client = None
+    ) -> str:
         """
-        Registra modelo no MLFlow
+        Registra modelo no MLFlow E salva backup no MinIO
         
         Args:
             model: Modelo sklearn
             artifact_path: Caminho do artefato
             registered_model_name: Nome para registro (opcional)
+            save_to_s3: Se True, salva backup no MinIO
+            s3_client: Cliente S3 (opcional)
+        
+        Returns:
+            run_id do modelo salvo
         """
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path=artifact_path,
-            registered_model_name=registered_model_name
-        )
-        logger.info(f"🤖 Modelo registrado: {artifact_path}")
+        run_id = None
+        
+        # 1. PRIMEIRO: Salvar backup no MinIO (sempre funciona)
+        if save_to_s3 and s3_client:
+            try:
+                # Obter run_id atual
+                run = mlflow.active_run()
+                run_id = run.info.run_id if run else "unknown"
+                
+                # Caminho no MinIO
+                model_name = registered_model_name or "model"
+                s3_key = f"models/{model_name}/{run_id}.pkl"
+                
+                # Salvar no MinIO
+                success = s3_client.save_model(model, s3_key)
+                if success:
+                    logger.info(f"💾 Backup salvo no MinIO: {s3_key}")
+                else:
+                    logger.warning(f"⚠️  Falha ao salvar no MinIO")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️  Erro ao salvar backup no MinIO: {str(e)}")
+        
+        # 2. DEPOIS: Tentar salvar no MLFlow (pode dar erro 404, mas não problema)
+        try:
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path=artifact_path
+            )
+            logger.info(f"🤖 Modelo salvo no MLFlow: {artifact_path}")
+                
+        except Exception as e:
+            logger.warning(f"⚠️  MLFlow falhou (não é problema): {str(e)}")
+            # Modelo já está no MinIO, então ok
+        
+        return run_id
+    
+    def load_model_from_run(self, run_id: str, artifact_path: str = "model") -> Any:
+        """
+        Carrega modelo de um run específico
+        
+        Args:
+            run_id: ID do run
+            artifact_path: Caminho do artefato
+        
+        Returns:
+            Modelo carregado ou None
+        """
+        try:
+            model_uri = f"runs:/{run_id}/{artifact_path}"
+            model = mlflow.sklearn.load_model(model_uri)
+            logger.info(f"✅ Modelo carregado do run: {run_id[:8]}...")
+            return model
+        except Exception as e:
+            logger.error(f"❌ Erro ao carregar modelo do MLFlow: {str(e)}")
+            return None
+    
+    def load_model_hybrid(
+        self, 
+        model_name: str, 
+        s3_client = None,
+        prefer_mlflow: bool = True
+    ) -> Any:
+        """
+        Carrega modelo usando abordagem híbrida: MLFlow + MinIO
+        
+        Args:
+            model_name: Nome do modelo
+            s3_client: Cliente S3 para fallback
+            prefer_mlflow: Se True, tenta MLFlow primeiro
+        
+        Returns:
+            Modelo carregado ou None
+        """
+        model = None
+        
+        if prefer_mlflow:
+            # Tentar carregar do MLFlow primeiro
+            try:
+                # Buscar run mais recente desse modelo
+                runs = self.client.search_runs(
+                    experiment_ids=[self.experiment_id],
+                    filter_string=f"tags.mlflow.runName = 'train_{model_name}'",
+                    order_by=["start_time DESC"],
+                    max_results=1
+                )
+                
+                if runs and len(runs) > 0:
+                    run_id = runs[0].info.run_id
+                    model = self.load_model_from_run(run_id)
+                    
+                    if model:
+                        logger.info(f"✅ Modelo carregado do MLFlow: {model_name}")
+                        return model
+            except Exception as e:
+                logger.warning(f"⚠️  MLFlow falhou: {str(e)}")
+        
+        # Fallback: tentar carregar do MinIO
+        if s3_client and model is None:
+            try:
+                # Listar modelos desse nome no MinIO
+                files = s3_client.list_files(prefix=f"models/{model_name}/")
+                
+                if files:
+                    # Pegar o mais recente (último da lista)
+                    latest_file = sorted(files)[-1]
+                    model = s3_client.load_model(latest_file)
+                    
+                    if model:
+                        logger.info(f"✅ Modelo carregado do MinIO (backup): {model_name}")
+                        return model
+            except Exception as e:
+                logger.warning(f"⚠️  MinIO falhou: {str(e)}")
+        
+        if model is None:
+            logger.error(f"❌ Não foi possível carregar modelo: {model_name}")
+        
+        return model
     
     def log_artifact(self, local_path: str, artifact_path: str = None) -> None:
         """

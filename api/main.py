@@ -87,7 +87,7 @@ def load_model(model_name: str = None):
     # Carregar modelo
     mlflow_client = get_mlflow_client()
     model_uri = f"models:/{model_name}/latest"
-    model = mlflow_client.load_model(model_uri)
+    model = mlflow_client.load_model_hybrid(model_uri)
     
     if model is None:
         raise HTTPException(status_code=404, detail=f"Modelo '{model_name}' não encontrado")

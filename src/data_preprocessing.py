@@ -20,6 +20,7 @@ class DataPreprocessor:
     def __init__(self):
         """Inicializa preprocessador"""
         self.scaler = None
+        self.encoder = None  # Adicionar encoder
         self.feature_names = None
         logger.info("DataPreprocessor inicializado")
     
@@ -286,13 +287,19 @@ class DataPreprocessor:
         
         return df_clean
     
-    def apply_onehot_encoding(self, df: pd.DataFrame, categorical_cols: list = None) -> pd.DataFrame:
+    def apply_onehot_encoding(
+        self, 
+        df: pd.DataFrame, 
+        categorical_cols: list = None,
+        fit: bool = True
+    ) -> pd.DataFrame:
         """
         Aplica One-Hot Encoding nas colunas categóricas
         
         Args:
             df: DataFrame
             categorical_cols: Lista de colunas categóricas (None = default)
+            fit: Se True, faz fit_transform. Se False, apenas transform
         
         Returns:
             DataFrame com encoding
@@ -302,16 +309,21 @@ class DataPreprocessor:
         if categorical_cols is None:
             categorical_cols = ["chest pain type", "resting ecg", "ST slope"]
         
-        logger.info(f"🔄 Aplicando One-Hot Encoding em: {categorical_cols}")
-        
-        # OneHotEncoder
-        ohe = OneHotEncoder(drop=None, sparse_output=False)
-        encoded = ohe.fit_transform(df[categorical_cols])
+        # Se for o primeiro dataset (fit=True), criar e ajustar encoder
+        if fit or self.encoder is None:
+            logger.info(f"🔄 Criando OneHotEncoder e fazendo fit em: {categorical_cols}")
+            self.encoder = OneHotEncoder(drop=None, sparse_output=False, handle_unknown='ignore')
+            encoded = self.encoder.fit_transform(df[categorical_cols])
+        else:
+            # Se não for o primeiro, apenas transformar usando encoder já ajustado
+            logger.info(f"🔄 Aplicando OneHotEncoder já ajustado em: {categorical_cols}")
+            encoded = self.encoder.transform(df[categorical_cols])
         
         # Criar DataFrame com features codificadas
         encoded_df = pd.DataFrame(
             encoded,
-            columns=ohe.get_feature_names_out(categorical_cols)
+            columns=self.encoder.get_feature_names_out(categorical_cols),
+            index=df.index
         )
         
         # Remover colunas originais e adicionar codificadas
@@ -320,7 +332,7 @@ class DataPreprocessor:
             encoded_df.reset_index(drop=True)
         ], axis=1)
         
-        logger.info(f"✅ One-Hot Encoding concluído: {df.shape[1]} -> {df_encoded.shape[1]} colunas")
+        logger.info(f"✅ One-Hot Encoding: {df.shape[1]} -> {df_encoded.shape[1]} colunas")
         
         return df_encoded
         """

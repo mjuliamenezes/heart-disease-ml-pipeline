@@ -39,6 +39,17 @@ class ModelTrainer:
         Returns:
             Instância do modelo
         """
+        # Mapa de aliases (random_forest_tuned -> random_forest)
+        model_aliases = {
+            'random_forest_tuned': 'random_forest',
+            'random_forest_optimized': 'random_forest',
+            'logistic_regression_tuned': 'logistic_regression',
+            'svm_tuned': 'svm'
+        }
+        
+        # Resolver alias
+        resolved_name = model_aliases.get(model_name, model_name)
+        
         models_dict = {
             'random_forest': RandomForestClassifier,
             'gradient_boosting': GradientBoostingClassifier,
@@ -49,7 +60,7 @@ class ModelTrainer:
             'knn': KNeighborsClassifier
         }
         
-        if model_name not in models_dict:
+        if resolved_name not in models_dict:
             logger.error(f"❌ Modelo '{model_name}' não encontrado")
             return None
         
@@ -65,9 +76,9 @@ class ModelTrainer:
         }
         
         # Mesclar parâmetros default com kwargs
-        params = {**default_params.get(model_name, {}), **kwargs}
+        params = {**default_params.get(resolved_name, {}), **kwargs}
         
-        model = models_dict[model_name](**params)
+        model = models_dict[resolved_name](**params)
         logger.info(f"🤖 Modelo criado: {model_name} com params: {params}")
         
         return model
@@ -387,6 +398,18 @@ class ModelTrainer:
             logger.warning("⚠️  XGBoost não instalado. Instale com: pip install xgboost")
         
         return self.train_multiple_models(X_train, y_train, improved_models)
+    
+    def save_best_model(self, model: Any, model_name: str) -> None:
+        """
+        Salva melhor modelo
+        
+        Args:
+            model: Modelo
+            model_name: Nome do modelo
+        """
+        self.best_model = model
+        self.best_model_name = model_name
+        logger.info(f"🏆 Melhor modelo salvo: {model_name}")
         """
         Salva melhor modelo
         
