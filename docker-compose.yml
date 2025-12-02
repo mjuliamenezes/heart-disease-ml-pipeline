@@ -184,15 +184,17 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET=${MINIO_BUCKET}
+      - THINGSBOARD_TOKEN=${THINGSBOARD_TOKEN:-} 
       - PYTHONUNBUFFERED=1
     depends_on:
       - api
       - minio
+      - thingsboard  
     networks:
       - ml-network  
     profiles:
       - streaming
-    command: ["python", "stream_simulator.py", "--delay", "2", "--max-samples", "50"]
+    command: ["python", "stream_simulator.py", "--delay", "1", "--max-samples", "50", "--no-api"]
     
 volumes:
   postgres_data:

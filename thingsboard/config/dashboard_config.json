@@ -1,0 +1,221 @@
+{
+  "title": "Heart Disease Predictions - Real-time Dashboard",
+  "configuration": {
+    "description": "Dashboard para monitoramento de predições de doenças cardíacas em tempo real",
+    "widgets": {
+      "totalPredictions": {
+        "type": "latest",
+        "title": "Total de Predições",
+        "sizeX": 4,
+        "sizeY": 3,
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "dataKeys": [
+                {
+                  "name": "total_predictions",
+                  "label": "Total",
+                  "type": "timeseries"
+                }
+              ]
+            }
+          ],
+          "showTitle": true,
+          "backgroundColor": "#fff",
+          "color": "rgba(0, 0, 0, 0.87)",
+          "padding": "0px",
+          "settings": {
+            "labelPosition": "top",
+            "layout": "default"
+          },
+          "decimals": 0,
+          "units": "predições"
+        }
+      },
+      "accuracyGauge": {
+        "type": "latest",
+        "title": "Acurácia Atual",
+        "sizeX": 6,
+        "sizeY": 5,
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "dataKeys": [
+                {
+                  "name": "accuracy",
+                  "label": "Acurácia",
+                  "type": "timeseries"
+                }
+              ]
+            }
+          ],
+          "settings": {
+            "minValue": 0,
+            "maxValue": 100,
+            "showTitle": true,
+            "showTicks": true,
+            "colorRanges": [
+              {
+                "from": 0,
+                "to": 70,
+                "color": "#f44336"
+              },
+              {
+                "from": 70,
+                "to": 85,
+                "color": "#ff9800"
+              },
+              {
+                "from": 85,
+                "to": 100,
+                "color": "#4caf50"
+              }
+            ]
+          },
+          "units": "%",
+          "decimals": 2
+        }
+      },
+      "predictionTimeline": {
+        "type": "timeseries",
+        "title": "Timeline de Predições",
+        "sizeX": 12,
+        "sizeY": 6,
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "dataKeys": [
+                {
+                  "name": "prediction",
+                  "label": "Predição",
+                  "type": "timeseries",
+                  "color": "#2196f3"
+                },
+                {
+                  "name": "true_label",
+                  "label": "Label Real",
+                  "type": "timeseries",
+                  "color": "#4caf50"
+                }
+              ]
+            }
+          ],
+          "settings": {
+            "type": "line",
+            "showTitle": true,
+            "showLegend": true,
+            "fillLines": false,
+            "showTooltip": true
+          }
+        }
+      },
+      "probabilityChart": {
+        "type": "timeseries",
+        "title": "Probabilidade de Doença (%)",
+        "sizeX": 12,
+        "sizeY": 5,
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "dataKeys": [
+                {
+                  "name": "probability",
+                  "label": "Probabilidade",
+                  "type": "timeseries",
+                  "color": "#ff5722"
+                }
+              ]
+            }
+          ],
+          "settings": {
+            "type": "line",
+            "showTitle": true,
+            "fillLines": true,
+            "fillOpacity": 0.4
+          }
+        }
+      },
+      "correctPredictions": {
+        "type": "pie_chart",
+        "title": "Distribuição de Acertos",
+        "sizeX": 6,
+        "sizeY": 5,
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "dataKeys": [
+                {
+                  "name": "correct_predictions",
+                  "label": "Corretas",
+                  "type": "timeseries",
+                  "color": "#4caf50"
+                },
+                {
+                  "name": "incorrect_predictions",
+                  "label": "Incorretas",
+                  "type": "timeseries",
+                  "color": "#f44336"
+                }
+              ]
+            }
+          ],
+          "settings": {
+            "showTitle": true,
+            "showLegend": true
+          }
+        }
+      },
+      "latestPredictions": {
+        "type": "table",
+        "title": "Últimas Predições",
+        "sizeX": 12,
+        "sizeY": 6,
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "dataKeys": [
+                {
+                  "name": "patient_id",
+                  "label": "ID Paciente",
+                  "type": "timeseries"
+                },
+                {
+                  "name": "prediction",
+                  "label": "Predição",
+                  "type": "timeseries"
+                },
+                {
+                  "name": "true_label",
+                  "label": "Real",
+                  "type": "timeseries"
+                },
+                {
+                  "name": "probability",
+                  "label": "Probabilidade (%)",
+                  "type": "timeseries"
+                },
+                {
+                  "name": "is_correct",
+                  "label": "Correto?",
+                  "type": "timeseries"
+                }
+              ]
+            }
+          ],
+          "settings": {
+            "showTitle": true,
+            "enablePagination": true,
+            "defaultPageSize": 10,
+            "displayPagination": true
+          }
+        }
+      }
+    }
+  }
+}

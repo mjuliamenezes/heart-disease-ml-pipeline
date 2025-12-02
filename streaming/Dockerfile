@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código fonte
 COPY src/ /app/src/
 COPY streaming/stream_simulator.py /app/stream_simulator.py
+COPY streaming/thingsboard_client.py /app/thingsboard_client.py
 
 # Verificar estrutura (debug)
 RUN echo "=== Estrutura de diretórios ===" && \

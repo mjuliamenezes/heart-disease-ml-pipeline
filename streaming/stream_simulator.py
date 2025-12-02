@@ -31,6 +31,13 @@ except ImportError:
         print(f"Arquivos em /app/src: {os.listdir('/app/src') if os.path.exists('/app/src') else 'N/A'}")
         sys.exit(1)
 
+# Importar ThingsBoard Client
+try:
+    from thingsboard_client import ThingsBoardClient
+except ImportError:
+    ThingsBoardClient = None
+    print("⚠️ ThingsBoard client não disponível. Continuando sem integração...")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -38,10 +45,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class StreamingSimulator:
-    def __init__(self, api_url: str = "http://api:8000", delay: float = 2.0):
+    def __init__(self, api_url: str = "http://api:8000", delay: float = 2.0, 
+                 thingsboard_token: str = None):
         self.api_url = api_url
         self.delay = delay
         self.s3 = S3Client()
+        
+        # Inicializar ThingsBoard se token fornecido
+        self.tb_client = None
+        if thingsboard_token and ThingsBoardClient:
+            self.tb_client = ThingsBoardClient(
+                host="http://thingsboard:9090",
+                access_token=thingsboard_token
+            )
+            logger.info("✅ ThingsBoard client inicializado")
+        elif thingsboard_token:
+            logger.warning("⚠️ Token fornecido mas ThingsBoard client não disponível")
         
     def load_validation_data(self):
         """Carrega dados de validação do MinIO"""
@@ -229,6 +248,17 @@ class StreamingSimulator:
             logger.info(f"{emoji} {'CORRETO' if is_correct else 'INCORRETO'}")
             logger.info(f"📈 Acurácia Atual: {correct_predictions}/{idx} ({correct_predictions/idx*100:.1f}%)")
             
+            # Enviar para ThingsBoard se configurado
+            if self.tb_client:
+                self.tb_client.send_prediction(
+                    patient_id=patient_id,
+                    prediction=predicted_label,
+                    probability=probability,
+                    true_label=true_label,
+                    is_correct=is_correct,
+                    model_name=model_name
+                )
+            
             # Delay antes da próxima amostra
             if idx < total:
                 time.sleep(self.delay)
@@ -244,6 +274,15 @@ class StreamingSimulator:
         logger.info(f"❌ Predições incorretas: {total - correct_predictions}")
         logger.info(f"📈 Acurácia Final: {final_accuracy:.2f}%")
         logger.info(f"{'='*60}\n")
+        
+        # Enviar resumo final para ThingsBoard
+        if self.tb_client:
+            self.tb_client.send_summary(
+                total=total,
+                correct=correct_predictions,
+                accuracy=final_accuracy
+            )
+            logger.info("📊 Resumo enviado para ThingsBoard")
 
 def wait_for_api(api_url: str, max_retries: int = 30):
     """Aguarda API estar pronta"""
@@ -272,8 +311,12 @@ if __name__ == "__main__":
     parser.add_argument('--delay', type=float, default=2.0, help='Delay entre requisições (segundos)')
     parser.add_argument('--max-samples', type=int, default=None, help='Número máximo de amostras')
     parser.add_argument('--no-api', action='store_true', help='Não usar API, carregar modelo direto do S3')
+    parser.add_argument('--tb-token', default=None, help='ThingsBoard device access token')
     
     args = parser.parse_args()
+    
+    # Pegar token do ambiente se não fornecido
+    tb_token = args.tb_token or os.getenv('THINGSBOARD_TOKEN')
     
     use_api = not args.no_api
     
@@ -284,5 +327,9 @@ if __name__ == "__main__":
             use_api = False
     
     # Iniciar simulação
-    simulator = StreamingSimulator(api_url=args.api_url, delay=args.delay)
+    simulator = StreamingSimulator(
+        api_url=args.api_url, 
+        delay=args.delay,
+        thingsboard_token=tb_token
+    )
     simulator.run(max_samples=args.max_samples, use_api=use_api)
