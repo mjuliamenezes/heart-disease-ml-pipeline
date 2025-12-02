@@ -136,42 +136,24 @@ class DatabaseClient:
         
         return self.execute_insert(query, params)
     
-    def insert_prediction(
-        self,
-        patient_data: Dict[str, Any],
-        prediction: int,
-        probability: float,
-        model_name: str,
-        model_version: str
-    ) -> bool:
-        """
-        Insere predição na tabela predictions
-        
-        Args:
-            patient_data: Dados do paciente
-            prediction: Predição (0 ou 1)
-            probability: Probabilidade
-            model_name: Nome do modelo
-            model_version: Versão do modelo
-        
-        Returns:
-            bool: True se sucesso
-        """
-        query = """
-            INSERT INTO heart_disease.predictions (
-                patient_data, prediction, probability, model_name, model_version
-            ) VALUES (%s, %s, %s, %s, %s)
-        """
-        
-        params = (
-            Json(patient_data),
-            prediction,
-            probability,
-            model_name,
-            model_version
-        )
-        
-        return self.execute_insert(query, params)
+    def insert_prediction(self, patient_data: dict, prediction: int, 
+                     probability: float, model_name: str, model_version: str):
+        """Insere predição no banco"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO heart_disease.predictions 
+                (patient_data, prediction, probability, model_name, model_version)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (json.dumps(patient_data), prediction, probability, model_name, model_version))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"❌ Erro ao salvar predição: {str(e)}")
     
     def insert_model_metrics(
         self,

@@ -173,26 +173,27 @@ services:
     networks:
       - ml-network
 
-  # Streaming Simulator - Envia dados de validação
   streaming:
     build:
-      context: ./streaming
-      dockerfile: Dockerfile
-    container_name: heart-streaming
+      context: .
+      dockerfile: streaming/Dockerfile
+    container_name: heart-disease-streaming
     environment:
-      API_URL: http://api:8000
-      STREAM_INTERVAL_SECONDS: ${STREAM_INTERVAL_SECONDS}
-      DATA_PATH: /data/validation.csv
+      - API_URL=http://api:8000
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=${MINIO_BUCKET}
+      - PYTHONUNBUFFERED=1
     depends_on:
       - api
-    volumes:
-      - ./data/processed:/data
+      - minio
     networks:
-      - ml-network
-    # Não inicia automaticamente, deve ser iniciado manualmente
+      - ml-network  
     profiles:
       - streaming
-
+    command: ["python", "stream_simulator.py", "--delay", "2", "--max-samples", "50"]
+    
 volumes:
   postgres_data:
   minio_data:

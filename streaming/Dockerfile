@@ -1,11 +1,31 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir \
-    pandas==2.1.4 \
-    requests==2.31.0
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY stream_simulator.py .
+# Copiar e instalar requirements do streaming
+COPY streaming/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "stream_simulator.py"]
+# Copiar código fonte
+COPY src/ /app/src/
+COPY streaming/stream_simulator.py /app/stream_simulator.py
+
+# Verificar estrutura (debug)
+RUN echo "=== Estrutura de diretórios ===" && \
+    ls -la /app/ && \
+    echo "=== Conteúdo de /app/src/ ===" && \
+    ls -la /app/src/ || echo "src/ não encontrado"
+
+# Variáveis de ambiente
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app:/app/src
+
+# Comando padrão
+CMD ["python", "stream_simulator.py", "--delay", "2"]
