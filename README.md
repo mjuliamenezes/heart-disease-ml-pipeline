@@ -4,13 +4,34 @@
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://www.docker.com/)
 
-## 👥 Equipe de Desenvolvimento
+| Nome | GitHub |
+|------|--------|
+| André Luiz G. C. da Fonseca | [@Nerebo](https://github.com/Nerebo) |
+| João Vitor M. Fittipaldi | [@joaovfittipaldi](https://github.com/joaovfittipaldi) |
+| Gabriel C. G. P Farias | [@caetrias](https://github.com/caetrias) |
+| Maria Julia O. T. Menezes | [@mjuliamenezes](https://github.com/mjuliamenezes) |
+| Maria Luísa C. Lima | [@malucoimbr](https://github.com/malucoimbr) |
 
-- **André Luiz G. C. da Fonseca** - algcf@cesar.school
-- **Gabriel C. G. P. Farias** - gcgpf@cesar.school
-- **João Vitor M. Fittipaldi** - jvmf@cesar.school
-- **Maria Júlia O. T. Menezes** - mjotm@cesar.school
-- **Maria Luísa C. Lima** - mlcl@cesar.school
+## 🎓 Informações Acadêmicas
+
+- **Disciplina:** Aprendizado de Máquina - 2025.2
+- **Instituição:** CESAR School
+- **Projeto:** Predição de Doenças Cardíacas usando Machine Learning
+- **Artigo de base:** [Enhancing Prognosis Accuracy for Ischemic Cardiovascular Disease Using K Nearest Neighbor](https://ieeexplore.ieee.org/document/10239171/)
+
+## 📋 Sobre o Projeto
+
+Este projeto implementa um pipeline completo de Machine Learning para predição de doenças cardíacas, incluindo:
+
+- **Análise Exploratória de Dados (EDA)** com visualizações interativas
+- **Treinamento de múltiplos modelos** de classificação
+- **Grid Search** para otimização de hiperparâmetros
+- **Cross-validation** para avaliação robusta
+- **Tracking de experimentos** com MLflow
+- **API REST** para upload de dados
+- **Dashboards** de visualização com ThingsBoard
+- **Ambientes de desenvolvimento** com JupyterLab e JupyterHub
+
 
 ---
 
