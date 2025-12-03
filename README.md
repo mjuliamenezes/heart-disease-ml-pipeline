@@ -108,7 +108,7 @@ This work presents the development of a complete architecture for predicting isc
 #### 1. Clone o Repositório
 
 ```bash
-git clone https://github.com/seu-usuario/heart-disease-ml-pipeline.git
+git clone https://github.com/mjuliamenezes/heart-disease-ml-pipeline.git
 cd heart-disease-ml-pipeline
 ```
 
@@ -116,7 +116,32 @@ cd heart-disease-ml-pipeline
 
 ```bash
 # Criar arquivo .env na raiz do projeto
-Solicite as variáveis de ambiente
+cat > .env << 'EOF'
+# DATABASE CREDENTIALS
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=mlflow_db
+
+# MINIO (S3-compatible) - Object Storage Local
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+MINIO_BUCKET=ml-bucket-heart
+
+# MLFLOW
+MLFLOW_TRACKING_URI=http://mlflow:5000
+
+# FASTAPI
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# THINGSBOARD
+TB_USERNAME=tenant@thingsboard.org
+TB_PASSWORD=tenant
+THINGSBOARD_TOKEN=ozqbzirn1y9q3j197m6i
+
+# STREAMING
+STREAM_INTERVAL_SECONDS=5
+EOF
 ```
 
 #### 3. Build e Inicialização dos Containers
@@ -156,11 +181,11 @@ python3 scripts/upload_to_minio.py
 
 Acessar JupyterLab em http://localhost:8888 e executar na ordem:
 
-1. `notebooks/01_data_ingestion.ipynb` - Ingestão e validação dos dados
-2. `notebooks/02_eda.ipynb` - Análise exploratória
+1. `notebooks/01_exploratory_analysis.ipynb` - Ingestão e validação dos dados
+2. `notebooks/02_preprocessing.ipynb` - Análise exploratória
 3. `notebooks/03_model_training.ipynb` - Treinamento dos modelos base
 4. `notebooks/04_model_evaluation.ipynb` - Avaliação e comparação
-5. `notebooks/05_hyperparameter_tuning.ipynb` - Otimização e modelo de produção
+5. `notebooks/05_predictions.ipynb` - Otimização e modelo de produção
 
 #### 7. Testar API de Predição
 
@@ -230,15 +255,28 @@ docker compose run --rm streaming python stream_simulator.py \
 #### 2. Clone o Repositório
 
 ```powershell
-git clone https://github.com/seu-usuario/heart-disease-ml-pipeline.git
+git clone https://github.com/mjuliamenezes/heart-disease-ml-pipeline.git
 cd heart-disease-ml-pipeline
 ```
 
 #### 3. Configure Variáveis de Ambiente
 
-```
-# Criar arquivo .env na raiz do projeto
-Solicite as variáveis de ambiente
+Criar arquivo `.env` na raiz do projeto com o seguinte conteúdo:
+
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=mlflow_db
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+MINIO_BUCKET=ml-bucket-heart
+MLFLOW_TRACKING_URI=http://mlflow:5000
+API_HOST=0.0.0.0
+API_PORT=8000
+TB_USERNAME=tenant@thingsboard.org
+TB_PASSWORD=tenant
+THINGSBOARD_TOKEN=ozqbzirn1y9q3j197m6i
+STREAM_INTERVAL_SECONDS=5
 ```
 
 #### 4. Build e Inicialização
@@ -264,6 +302,220 @@ python scripts\upload_to_minio.py
 #### 6-10. Seguir os mesmos passos do Linux
 
 Os comandos `docker compose`, `curl` e acesso aos notebooks são idênticos no Windows.
+
+---
+## 🎯 Dashboard ThingsBoard
+
+O dashboard fornece monitoramento em tempo real das predições. Siga o passo a passo abaixo para configurar.
+
+### 📋 Configuração Inicial do ThingsBoard
+
+#### Passo 1: Primeiro Acesso
+
+```bash
+# Aguardar ThingsBoard inicializar (pode levar 2-3 minutos)
+docker compose logs -f thingsboard | grep "Started"
+
+# Quando aparecer "ThingsBoard Started", acessar:
+# http://localhost:8080
+```
+
+**Login Inicial:**
+- Email: `tenant@thingsboard.org`
+- Password: `tenant`
+
+#### Passo 2: Criar Device
+
+1. No menu lateral esquerdo, clique em **"Devices"**
+2. Clique no botão **"+"** (Add device) no canto superior direito
+3. Preencha:
+   - **Name**: `heart-disease-predictions`
+   - **Device profile**: Deixar `default`
+4. Clique em **"Add"**
+
+#### Passo 3: Obter Access Token
+
+1. Na lista de devices, clique no device **`heart-disease-predictions`**
+2. Clique na aba **"Details"**
+3. Procure por **"Copy access token"** e clique para copiar
+4. **Atualize o arquivo `.env`** com o token copiado:
+
+```bash
+# Editar .env
+nano .env
+
+# Substituir a linha:
+THINGSBOARD_TOKEN=seu_token_aqui_copiado_do_thingsboard
+```
+
+5. **Reiniciar o streaming** para usar o novo token:
+
+```bash
+docker compose restart streaming
+```
+
+#### Passo 4: Verificar Telemetria 
+
+Antes de criar o dashboard, **execute um teste de streaming** para garantir que os dados estão chegando:
+
+```bash
+# Executar teste com 5 amostras
+docker compose run --rm streaming python stream_simulator.py \
+  --delay 1 \
+  --max-samples 5 \
+  --no-api
+```
+
+**Verificar dados:**
+1. No ThingsBoard, vá em **Devices** → **heart-disease-predictions**
+2. Clique na aba **"Latest telemetry"**
+3. Você deve ver as seguintes chaves:
+   - `patient_id`
+   - `prediction`
+   - `probability`
+   - `true_label`
+   - `is_correct`
+   - `total_predictions`
+   - `correct_predictions`
+   - `accuracy`
+
+**Se não aparecer nada, verifique:**
+- Token está correto no `.env`
+- Streaming foi reiniciado após trocar o token
+- ThingsBoard está rodando: `docker compose ps thingsboard`
+
+---
+
+### 🎨 Criando o Dashboard (Passo a Passo Detalhado)
+
+#### Passo 1: Criar Dashboard Vazio
+
+1. No menu lateral, clique em **"Dashboards"**
+2. Clique no botão **"+"** (Add dashboard)
+3. Preencha:
+   - **Title**: `Heart Disease ML - Real-time Predictions`
+   - **Description**: `Monitoramento em tempo real de predições de doenças cardíacas`
+4. Clique em **"Add"**
+5. **Abra o dashboard criado** clicando nele
+6. Clique em **"Enter edit mode"** (ícone de lápis no canto superior direito)
+
+---
+
+#### Widget 1: Card - Total de Predições
+
+1. Clique em **"+ Add new widget"**
+2. Selecione **"Cards"** → **"Simple card"**
+3. Clique em **"Add"**
+
+**Configurar Data:**
+1. Aba **"Data"**:
+   - **Entity alias**: Clique em **"+ Create new"**
+   - Name: `Device`
+   - Filter type: `Single entity`
+   - Type: `Device`
+   - Device: Selecione `heart-disease-predictions`
+   - Clique **"Add"**
+2. **Datasource**: Selecione `Device`
+3. **Data key**: Clique em **"+"**
+   - Type: `Timeseries`
+   - Key: Digite `total_predictions` (ou selecione da lista)
+   - Label: `Total`
+4. Clique em **"Add"**
+
+---
+
+#### Widget 2: Card - Predições Corretas
+
+1. **"+ Add new widget"** → **"Cards"** → **"Simple card"**
+2. **Data**:
+   - Entity alias: `Device` (já existe)
+   - Key: `correct_predictions`, Label: `Corretas`
+
+---
+
+#### Widget 3: Card - Acurácia Atual 
+
+1. **"+ Add new widget"** → **"Cards"** → **"Simple card"**
+2. **Data**:
+   - Entity alias: `Device`
+   - Key: `accuracy`, Label: `Acurácia`
+
+---
+
+#### Widget 4: Gauge - Acurácia Visual
+
+1. **"+ Add new widget"** → **"Analog gauges"** → **"Radial gauge"**
+2. **Data**:
+   - Entity alias: `Device`
+   - Key: `accuracy`, Label: `Acurácia`
+3. **Settings**:
+   - Min value: `0`
+   - Max value: `100`
+   - Units: `%`
+
+---
+
+#### Widget 5: Timeline - Predições vs Real
+
+1. **"+ Add new widget"** → **"Charts"** → **"Timeseries - Line chart"**
+2. **Data**:
+   - Entity alias: `Device`
+   - Adicionar 3 keys:
+     1. `prediction` - Label: `Predição`, Color: `#2196F3`
+     2. `true_label` - Label: `Label Real`, Color: `#4CAF50`
+     3. `is_correct` - Label: `Correto?`, Color: `#FF5722`
+
+---
+
+#### Widget 6: Gráfico de Probabilidade
+
+1. **"+ Add new widget"** → **"Charts"** → **"Timeseries - Line chart"**
+2. **Data**:
+   - Entity alias: `Device`
+   - Key: `probability`, Label: `Probabilidade (%)`
+
+---
+
+#### Widget 7: Tabela de Últimas Predições 
+
+1. **"+ Add new widget"** → **"Tables"** → **"Timeseries table"**
+2. **Data**:
+   - Entity alias: `Device`
+   - Adicionar keys na ordem:
+     1. `patient_id` - Label: `ID Paciente`
+     2. `prediction` - Label: `Predição`
+     3. `true_label` - Label: `Label Real`
+     4. `probability` - Label: `Probabilidade (%)`
+     5. `is_correct` - Label: `Correto?`
+3. **Settings**:
+   - **Pagination**:
+     - Enable pagination: 
+     - Default page size: `10`
+
+---
+
+#### Passo 3: Salvar e Testar
+
+1. Clique em **"Apply changes"** (ícone de disquete)
+2. Clique em **"Exit edit mode"** (ícone de olho)
+
+**Testar com dados reais:**
+
+```bash
+# Terminal 1: Executar streaming
+docker compose run --rm streaming python stream_simulator.py \
+  --delay 0.5 \
+  --max-samples 30 \
+  --no-api
+
+# Terminal 2 (opcional): Ver logs
+docker compose logs -f streaming
+```
+
+**No navegador:**
+- Mantenha o dashboard aberto
+- Os widgets devem atualizar em tempo real
+- Você verá os gráficos se preenchendo conforme os dados chegam
 
 ---
 
@@ -357,27 +609,6 @@ Os comandos `docker compose`, `curl` e acesso aos notebooks são idênticos no W
 | Métrica | Artigo Original (KNN) | Nossa Implementação (GB) | Melhoria |
 |---------|----------------------|--------------------------|----------|
 | Accuracy | 91.80% | 92.51% | **+0.71%** |
-
----
-
-## 🎯 Dashboard ThingsBoard
-
-O dashboard fornece monitoramento em tempo real das predições:
-
-### Widgets Implementados
-
-- **Gauge de Acurácia** - Visualização circular da performance atual
-- **Timeline de Predições** - Gráfico de linha comparando predições vs realidade
-- **Gráfico de Probabilidades** - Distribuição das probabilidades ao longo do tempo
-- **Cards de Métricas** - Total de predições, corretas e acurácia
-- **Tabela de Últimas Predições** - Histórico detalhado com filtros
-
-### Configuração
-
-1. Acesse: http://localhost:8080
-2. Login com `tenant@thingsboard.org` / `tenant`
-3. Vá em **Dashboards** → **Heart Disease Predictions**
-4. Execute o streaming para ver dados em tempo real
 
 ---
 
