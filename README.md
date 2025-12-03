@@ -118,29 +118,29 @@ cd heart-disease-ml-pipeline
 # Criar arquivo .env na raiz do projeto
 cat > .env << 'EOF'
 # DATABASE CREDENTIALS
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=mlflow_db
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POSTGRES_DB=
 
 # MINIO (S3-compatible) - Object Storage Local
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin123
-MINIO_BUCKET=ml-bucket-heart
+MINIO_ROOT_USER=
+MINIO_ROOT_PASSWORD=
+MINIO_BUCKET=
 
 # MLFLOW
-MLFLOW_TRACKING_URI=http://mlflow:5000
+MLFLOW_TRACKING_URI=
 
 # FASTAPI
-API_HOST=0.0.0.0
-API_PORT=8000
+API_HOST=
+API_PORT=
 
 # THINGSBOARD
-TB_USERNAME=tenant@thingsboard.org
-TB_PASSWORD=tenant
-THINGSBOARD_TOKEN=ozqbzirn1y9q3j197m6i
+TB_USERNAME=
+TB_PASSWORD=
+THINGSBOARD_TOKEN=
 
 # STREAMING
-STREAM_INTERVAL_SECONDS=5
+STREAM_INTERVAL_SECONDS=
 EOF
 ```
 
@@ -264,19 +264,19 @@ cd heart-disease-ml-pipeline
 Criar arquivo `.env` na raiz do projeto com o seguinte conteúdo:
 
 ```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=mlflow_db
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin123
-MINIO_BUCKET=ml-bucket-heart
-MLFLOW_TRACKING_URI=http://mlflow:5000
-API_HOST=0.0.0.0
-API_PORT=8000
-TB_USERNAME=tenant@thingsboard.org
-TB_PASSWORD=tenant
-THINGSBOARD_TOKEN=ozqbzirn1y9q3j197m6i
-STREAM_INTERVAL_SECONDS=5
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POSTGRES_DB=
+MINIO_ROOT_USER=
+MINIO_ROOT_PASSWORD=
+MINIO_BUCKET=
+MLFLOW_TRACKING_URI=
+API_HOST=
+API_PORT=
+TB_USERNAME=
+TB_PASSWORD=
+THINGSBOARD_TOKEN=
+STREAM_INTERVAL_SECONDS=
 ```
 
 #### 4. Build e Inicialização
@@ -321,8 +321,8 @@ docker compose logs -f thingsboard | grep "Started"
 ```
 
 **Login Inicial:**
-- Email: `tenant@thingsboard.org`
-- Password: `tenant`
+- Email: *
+- Password: *
 
 #### Passo 2: Criar Device
 
@@ -521,14 +521,14 @@ docker compose logs -f streaming
 
 ## 🔗 Acesso aos Serviços
 
-| Serviço | URL | Credenciais |
-|---------|-----|-------------|
-| **JupyterLab** | http://localhost:8888 | Sem senha |
-| **MLflow** | http://localhost:5000 | - |
-| **MinIO Console** | http://localhost:9001 | minioadmin / minioadmin123 |
-| **FastAPI (Swagger)** | http://localhost:8000/docs | - |
-| **ThingsBoard** | http://localhost:8080 | tenant@thingsboard.org / tenant |
-| **PostgreSQL** | localhost:5432 | postgres / postgres |
+| Serviço | URL |
+|---------|-----|
+| **JupyterLab** | http://localhost:8888 |
+| **MLflow** | http://localhost:5000 |
+| **MinIO Console** | http://localhost:9001 |
+| **FastAPI (Swagger)** | http://localhost:8000/docs |
+| **ThingsBoard** | http://localhost:8080 |
+| **PostgreSQL** | localhost:5432 |
 
 ---
 
